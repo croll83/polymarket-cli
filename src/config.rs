@@ -15,7 +15,7 @@ pub const NO_WALLET_MSG: &str =
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     #[serde(default)]
-    pub private_key: String,
+    pub private_key: Option<String>,
     pub chain_id: u64,
     #[serde(default = "default_signature_type")]
     pub signature_type: String,
@@ -98,11 +98,9 @@ pub fn save_wallet(key: &str, chain_id: u64, signature_type: &str) -> Result<()>
         fs::set_permissions(&dir, fs::Permissions::from_mode(0o700))?;
     }
 
-    // Preserve existing proxy setting from config file
     let existing_proxy = load_config().and_then(|c| c.proxy);
-
     let config = Config {
-        private_key: key.to_string(),
+        private_key: Some(key.to_string()),
         chain_id,
         signature_type: signature_type.to_string(),
         proxy: existing_proxy,
@@ -133,7 +131,6 @@ pub fn save_wallet(key: &str, chain_id: u64, signature_type: &str) -> Result<()>
     Ok(())
 }
 
-
 /// Priority: CLI flag > env var > config file.
 pub fn resolve_proxy(cli_flag: Option<&str>) -> Option<String> {
     if let Some(url) = cli_flag {
@@ -144,11 +141,9 @@ pub fn resolve_proxy(cli_flag: Option<&str>) -> Option<String> {
     {
         return Some(url);
     }
-    if let Some(config) = load_config() {
-        return config.proxy;
-    }
-    None
+    load_config().and_then(|c| c.proxy)
 }
+
 /// Priority: CLI flag > env var > config file.
 pub fn resolve_key(cli_flag: Option<&str>) -> (Option<String>, KeySource) {
     if let Some(key) = cli_flag {
@@ -159,10 +154,11 @@ pub fn resolve_key(cli_flag: Option<&str>) -> (Option<String>, KeySource) {
     {
         return (Some(key), KeySource::EnvVar);
     }
-    if let Some(config) = load_config() {
-        if !config.private_key.is_empty() {
-            return (Some(config.private_key), KeySource::ConfigFile);
-        }
+    if let Some(config) = load_config()
+        && let Some(key) = config.private_key
+        && !key.is_empty()
+    {
+        return (Some(key), KeySource::ConfigFile);
     }
     (None, KeySource::None)
 }
