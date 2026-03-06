@@ -112,15 +112,6 @@ fn main() -> ExitCode {
 
 #[allow(clippy::too_many_lines)]
 pub(crate) async fn run(cli: Cli) -> anyhow::Result<()> {
-    // Apply proxy from config/env so all reqwest clients (including SDK) use it.
-    // Only set ALL_PROXY if not already present — the user's explicit env takes precedence.
-    if std::env::var("ALL_PROXY").is_err() {
-        if let Some(proxy_url) = config::resolve_proxy() {
-            // SAFETY: single-threaded at this point (before any async work).
-            unsafe { std::env::set_var("ALL_PROXY", &proxy_url) };
-        }
-    }
-
     match cli.command {
         Commands::Setup => commands::setup::execute(),
         Commands::Shell => {
